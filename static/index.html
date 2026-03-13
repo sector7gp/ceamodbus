@@ -1,67 +1,121 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CEAModbus - Motor Control</title>
+    <title>CEAModbus - Motor Control Pro</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
     <div class="container">
         <aside class="sidebar">
             <div class="logo">
                 <h1>CEA<span>Modbus</span></h1>
+                <p class="subtitle">Control Pro v1.1</p>
             </div>
             <nav>
                 <div class="status-indicator">
                     <span id="connection-dot" class="dot disconnected"></span>
                     <span id="connection-text">Desconectado</span>
                 </div>
-                <button id="connect-btn" class="btn-primary">Reconectar</button>
+                <div class="info-group">
+                    <label>RS-485 Status:</label> <span id="rs485-status">0</span>
+                </div>
+                <div class="info-group">
+                    <label>Version:</label> <span id="driver-version">0</span>
+                </div>
+                <button id="connect-btn" class="btn-secondary">Forzar Lectura</button>
             </nav>
         </aside>
 
         <main class="dashboard">
             <header>
                 <h2>Dashboard de Control</h2>
-                <div class="alarm-badge hidden" id="alarm-box">
+                <div class="alarm-banner hidden" id="alarm-box">
                     <span id="alarm-code">Alarma: 0</span>
+                    <button id="reset-alarm-btn" class="btn-danger">Reset</button>
                 </div>
             </header>
 
-            <section class="stats-grid">
-                <div class="card glass">
-                    <h3>Velocidad Feedback</h3>
+            <section class="main-grid">
+                <!-- Speed Cards -->
+                <div class="card speed-card glass">
+                    <div class="card-header">
+                        <h3>Feedback Real</h3>
+                        <span class="badge">Live</span>
+                    </div>
                     <div class="value" id="feedback-speed">0 <span class="unit">RPM</span></div>
                     <div class="progress-bar">
                         <div class="fill" id="speed-fill" style="width: 0%"></div>
                     </div>
                 </div>
+
                 <div class="card glass">
-                    <h3>Velocidad Set</h3>
+                    <h3>Velocidad Seteada</h3>
                     <div class="value" id="set-speed-display">0 <span class="unit">RPM</span></div>
                 </div>
-            </section>
 
-            <section class="controls glass">
-                <div class="control-group">
-                    <label>Estado del Motor</label>
-                    <div class="switch-container">
-                        <span>OFF</span>
+                <!-- Status Details -->
+                <div class="card glass">
+                    <h3>Configuración</h3>
+                    <div class="detail-row">
+                        <span>Pares de Polos:</span>
+                        <strong id="pole-pairs">0</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Velocidad Máx (Ana):</span>
+                        <strong id="max-analogue">0 RPM</strong>
+                    </div>
+                </div>
+
+                <!-- Interactive Controls -->
+                <div class="card controls-card glass">
+                    <h3>Control de Operación</h3>
+                    <div class="control-row">
+                        <label>Habilitar Motor</label>
                         <label class="switch">
                             <input type="checkbox" id="enable-toggle">
                             <span class="slider round"></span>
                         </label>
-                        <span>ON</span>
+                    </div>
+                    <div class="control-row">
+                        <label>Freno (Brake)</label>
+                        <label class="switch">
+                            <input type="checkbox" id="brake-toggle">
+                            <span class="slider round slider-red"></span>
+                        </label>
+                    </div>
+                    <div class="control-row">
+                        <label>Sentido de Giro</label>
+                        <div class="segmented-control">
+                            <input type="radio" name="direction" id="dir-fwd" value="true" checked>
+                            <label for="dir-fwd">Forward</label>
+                            <input type="radio" name="direction" id="dir-rev" value="false">
+                            <label for="dir-rev">Reverse</label>
+                        </div>
                     </div>
                 </div>
 
-                <div class="control-group">
-                    <label for="speed-input">Nueva Velocidad (RPM)</label>
-                    <div class="input-action">
-                        <input type="number" id="speed-input" placeholder="Ej: 3000" min="0" max="60000">
-                        <button id="set-speed-btn" class="btn-primary">Setear</button>
+                <!-- Input Controls -->
+                <div class="card settings-card glass">
+                    <h3>Ajustes Rápidos</h3>
+                    <div class="input-group">
+                        <label>RPM de Seteo</label>
+                        <div class="input-box">
+                            <input type="number" id="speed-input" placeholder="0 - 60000">
+                            <button id="set-speed-btn" class="btn-primary">Set</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Rampa Acc/Dec (seg)</label>
+                        <div class="input-box">
+                            <input type="number" id="acc-input" placeholder="Ej: 10">
+                            <button id="set-acc-btn" class="btn-primary">Set</button>
+                        </div>
+                        <p class="hint">Actual: <span id="acc-time-display">0</span>s</p>
                     </div>
                 </div>
             </section>
@@ -69,4 +123,5 @@
     </div>
     <script src="js/main.js"></script>
 </body>
+
 </html>
