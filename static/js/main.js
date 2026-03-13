@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const body = {
                 speed_a: parseInt(seqSpeedA.value),
                 speed_b: parseInt(seqSpeedB.value),
-                interval: parseInt(seqInterval.value)
+                interval: parseFloat(seqInterval.value)
             };
             await postAction('/api/sequencer/start', body);
         }
@@ -202,5 +202,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load and start polling
     updateStatus();
-    setInterval(updateStatus, 1500); // Polling slightly slower to allow writes
+    setInterval(updateStatus, 500); // 2Hz for more real-time feeling
 });

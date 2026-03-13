@@ -35,7 +35,7 @@ class SpeedRequest(BaseModel):
 class SequencerRequest(BaseModel):
     speed_a: int
     speed_b: int
-    interval: int
+    interval: float
 
 class AccTimeRequest(BaseModel):
     seconds: int
@@ -70,24 +70,27 @@ async def sequencer_loop():
         try:
             target_rpm = sequencer.speed_a if sequencer.current_target == "A" else sequencer.speed_b
             modbus.set_speed(target_rpm)
-            print(f"Sequencer: Sent speed {target_rpm} (Target {sequencer.current_target})")
             
             # Switch for next time
             sequencer.current_target = "B" if sequencer.current_target == "A" else "A"
             
-            await asyncio.sleep(sequencer.interval)
+            # Use a smaller sleep chunk to remain responsive to cancelation
+            sleep_time = sequencer.interval
+            await asyncio.sleep(sleep_time)
+        except asyncio.CancelledError:
+            break
         except Exception as e:
             print(f"Sequencer error: {e}")
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
 
 @app.post("/api/sequencer/start")
 async def start_sequencer(req: SequencerRequest):
     if sequencer.active:
-        return {"status": "already_running"}
+        await stop_sequencer() # Restart if already running
     
     sequencer.speed_a = req.speed_a
     sequencer.speed_b = req.speed_b
-    sequencer.interval = max(1, req.interval)
+    sequencer.interval = max(0.1, req.interval) # Allow 100ms cycle
     sequencer.active = True
     sequencer.current_target = "A"
     sequencer.task = asyncio.create_task(sequencer_loop())
