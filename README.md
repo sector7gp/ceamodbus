@@ -23,30 +23,37 @@ CEAModbus es una aplicación de escritorio multiplataforma escrita en Python dis
 
 ### Estructura del Proyecto
 
-- `app.py`: Punto de entrada de la aplicación y lógica de la interfaz de usuario.
-- `modbus_manager.py`: Módulo encargado de la comunicación serie y mapeo de registros Modbus.
+- `app.py`: Servidor backend (FastAPI) que maneja la comunicación Modbus.
+- `modbus_manager.py`: Módulo de comunicación serie.
+- `static/`: Frontend (HTML/JS/CSS) del dashboard.
 - `requirements.txt`: Dependencias del proyecto.
 
 ### Instalación
 
 1. Clonar el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/CEAModbus.git
+   git clone https://github.com/sector7gp/ceamodbus.git
    cd CEAModbus
    ```
 
-2. Crear un entorno virtual:
+2. Crear y activar entorno virtual:
    ```bash
    python -m venv venv
-   source venv/bin/activate  # En Windows: venv\Scripts\activate
+   source venv/bin/activate
    ```
 
 3. Instalar dependencias:
    ```bash
-   pip install pymodbus pyserial customtkinter
+   pip install -r requirements.txt
    ```
 
-## Registro de Datos (Modbus)
+### Uso
+
+1. Iniciar el servidor:
+   ```bash
+   python app.py
+   ```
+2. Abrir el navegador en: `http://localhost:8000`
 
 | Registro | Función | Descripción |
 | :--- | :--- | :--- |

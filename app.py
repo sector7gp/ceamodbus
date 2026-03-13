@@ -1,96 +1,65 @@
-import customtkinter as ctk
+from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from modbus_manager import ModbusManager
-import threading
-import time
+import uvicorn
+import os
 
-class CEAModbusApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
+app = FastAPI(title="CEAModbus API")
 
-        self.title("CEAModbus - Motor Brushless Control")
-        self.geometry("800x600")
-        
-        # Modern UI Styling
-        ctk.set_appearance_mode("Dark")
-        ctk.set_default_color_theme("blue")
+# Setup Modbus Manager
+# Default for macOS might be something like /dev/tty.usbserial-XXX
+# User should list /dev/tty.* to confirm
+SERIAL_PORT = os.getenv("MODBUS_PORT", "/dev/tty.usbserial-10") 
+modbus = ModbusManager(port=SERIAL_PORT)
 
-        self.modbus = ModbusManager()
+class SpeedRequest(BaseModel):
+    rpm: int
 
-        # Grid layout
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=3)
-        self.grid_rowconfigure(0, weight=1)
+@app.on_event("startup")
+def startup_event():
+    connected = modbus.connect()
+    if not connected:
+        print(f"Warning: Could not connect to {SERIAL_PORT}")
 
-        # Sidebar for connections
-        self.sidebar = ctk.CTkFrame(self, width=140, corner_radius=0)
-        self.sidebar.grid(row=0, column=0, sticky="nsew")
-        
-        self.logo_label = ctk.CTkLabel(self.sidebar, text="CEA Modbus", font=ctk.CTkFont(size=20, weight="bold"))
-        self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
-        
-        self.conn_status = ctk.CTkLabel(self.sidebar, text="Desconectado", text_color="red")
-        self.conn_status.grid(row=1, column=0, padx=20, pady=10)
+@app.on_event("shutdown")
+def shutdown_event():
+    modbus.disconnect()
 
-        self.connect_btn = ctk.CTkButton(self.sidebar, text="Conectar", command=self.toggle_connection)
-        self.connect_btn.grid(row=2, column=0, padx=20, pady=10)
+@app.get("/api/status")
+async def get_status():
+    data = modbus.read_motor_status()
+    if data:
+        return data
+    else:
+        # Mocking for UI development if hardware not connected
+        return {
+            "set_speed": 0,
+            "feedback_speed": 0,
+            "is_enabled": False,
+            "error": "Hardware not connected"
+        }
 
-        # Main Dashboard
-        self.dashboard = ctk.CTkFrame(self)
-        self.dashboard.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
-        
-        # Speed Display
-        self.speed_label = ctk.CTkLabel(self.dashboard, text="Velocidad Feedback", font=ctk.CTkFont(size=16))
-        self.speed_label.grid(row=0, column=0, padx=20, pady=(20, 10))
-        
-        self.speed_value = ctk.CTkLabel(self.dashboard, text="0 RPM", font=ctk.CTkFont(size=40, weight="bold"))
-        self.speed_value.grid(row=1, column=0, padx=20, pady=10)
+@app.post("/api/speed")
+async def set_speed(req: SpeedRequest):
+    try:
+        modbus.set_speed(req.rpm)
+        return {"status": "ok", "speed": req.rpm}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-        # Controls
-        self.ctrl_frame = ctk.CTkFrame(self.dashboard)
-        self.ctrl_frame.grid(row=2, column=0, padx=20, pady=20, sticky="nsew")
-        
-        self.enable_switch = ctk.CTkSwitch(self.ctrl_frame, text="Habilitar Motor", command=self.update_motor_state)
-        self.enable_switch.grid(row=0, column=0, padx=20, pady=10)
+@app.post("/api/toggle")
+async def toggle_motor(enabled: bool):
+    try:
+        modbus.set_enabled(enabled)
+        return {"status": "ok", "enabled": enabled}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-        self.speed_input = ctk.CTkEntry(self.ctrl_frame, placeholder_text="Set Speed (RPM)")
-        self.speed_input.grid(row=1, column=0, padx=20, pady=10)
-        
-        self.set_speed_btn = ctk.CTkButton(self.ctrl_frame, text="Setear Velocidad", command=self.update_speed)
-        self.set_speed_btn.grid(row=1, column=1, padx=20, pady=10)
-
-        self.running = False
-
-    def toggle_connection(self):
-        if not self.running:
-            if self.modbus.connect():
-                self.conn_status.configure(text="Conectado", text_color="green")
-                self.connect_btn.configure(text="Desconectar")
-                self.running = True
-                threading.Thread(target=self.poll_data, daemon=True).start()
-        else:
-            self.running = False
-            self.modbus.disconnect()
-            self.conn_status.configure(text="Desconectado", text_color="red")
-            self.connect_btn.configure(text="Conectar")
-
-    def poll_data(self):
-        while self.running:
-            data = self.modbus.read_motor_status()
-            if data:
-                self.speed_value.configure(text=f"{data['feedback_speed']} RPM")
-            time.sleep(1)
-
-    def update_motor_state(self):
-        enabled = self.enable_switch.get()
-        self.modbus.set_enabled(enabled)
-
-    def update_speed(self):
-        try:
-            rpm = int(self.speed_input.get())
-            self.modbus.set_speed(rpm)
-        except ValueError:
-            pass
+# Static files for the frontend
+if os.path.exists("static"):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
-    app = CEAModbusApp()
-    app.mainloop()
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CEAModbus - Motor Control</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>CEA<span>Modbus</span></h1>
+            </div>
+            <nav>
+                <div class="status-indicator">
+                    <span id="connection-dot" class="dot disconnected"></span>
+                    <span id="connection-text">Desconectado</span>
+                </div>
+                <button id="connect-btn" class="btn-primary">Reconectar</button>
+            </nav>
+        </aside>
+
+        <main class="dashboard">
+            <header>
+                <h2>Dashboard de Control</h2>
+                <div class="alarm-badge hidden" id="alarm-box">
+                    <span id="alarm-code">Alarma: 0</span>
+                </div>
+            </header>
+
+            <section class="stats-grid">
+                <div class="card glass">
+                    <h3>Velocidad Feedback</h3>
+                    <div class="value" id="feedback-speed">0 <span class="unit">RPM</span></div>
+                    <div class="progress-bar">
+                        <div class="fill" id="speed-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="card glass">
+                    <h3>Velocidad Set</h3>
+                    <div class="value" id="set-speed-display">0 <span class="unit">RPM</span></div>
+                </div>
+            </section>
+
+            <section class="controls glass">
+                <div class="control-group">
+                    <label>Estado del Motor</label>
+                    <div class="switch-container">
+                        <span>OFF</span>
+                        <label class="switch">
+                            <input type="checkbox" id="enable-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span>ON</span>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label for="speed-input">Nueva Velocidad (RPM)</label>
+                    <div class="input-action">
+                        <input type="number" id="speed-input" placeholder="Ej: 3000" min="0" max="60000">
+                        <button id="set-speed-btn" class="btn-primary">Setear</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+</html>
