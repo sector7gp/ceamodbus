@@ -90,8 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 seqActiveBadge.classList.add('hidden');
             }
 
-            // Logic States (Update only if user isn't interacting)
-            if (!document.activeElement || (document.activeElement.type !== 'checkbox' && document.activeElement.type !== 'radio')) {
+            // Logic States (Update only if user isn't interacting and no write is pending)
+            if (!isUpdating) {
                 enableToggle.checked = data.is_enabled;
                 brakeToggle.checked = data.is_braked;
                 if (data.is_forward) dirFwd.checked = true;
@@ -99,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // System states
                 rs485Toggle.checked = data.rs485_status === 1;
+                returnToggle.checked = data.return_data_status === 0; // Added return_data_status to backend later if needed
             }
 
             // Connection indicator

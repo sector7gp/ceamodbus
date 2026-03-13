@@ -83,10 +83,13 @@ class ModbusManager:
         # Block 2: Logic states
         # Habilitar (0x66), Freno (0x6A), Sentido (0x6D)
         r_en = self._read_safe(0x0066, 1)
-        if r_en is not None: status["is_enabled"] = r_en[0] == 0
+        if r_en is not None: 
+            # Changed: 1=Enable, 0=Disable (matches Doc behavior)
+            status["is_enabled"] = r_en[0] == 1
         
         r_brk = self._read_safe(0x006A, 1)
-        if r_brk is not None: status["is_braked"] = r_brk[0] == 0
+        # Assuming Brake follows same logic: 1=Braked/Active, 0=None
+        if r_brk is not None: status["is_braked"] = r_brk[0] == 1
         
         r_dir = self._read_safe(0x006D, 1)
         if r_dir is not None:
@@ -122,10 +125,10 @@ class ModbusManager:
         return self._write_safe(address=0x0056, value=rpm)
 
     def set_enabled(self, enabled=True):
-        return self._write_safe(address=0x0066, value=0 if enabled else 1)
+        return self._write_safe(address=0x0066, value=1 if enabled else 0)
 
     def set_brake(self, braked=True):
-        return self._write_safe(address=0x006A, value=0 if braked else 1)
+        return self._write_safe(address=0x006A, value=1 if braked else 0)
 
     def set_direction(self, forward=True):
         return self._write_safe(address=0x006D, value=1 if forward else 0)
