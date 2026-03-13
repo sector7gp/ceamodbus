@@ -9,6 +9,7 @@ import os
 app = FastAPI(title="CEAModbus API")
 
 import asyncio
+import json
 from typing import Optional
 
 app = FastAPI(title="CEAModbus API")
@@ -17,17 +18,47 @@ app = FastAPI(title="CEAModbus API")
 SERIAL_PORT = os.getenv("MODBUS_PORT", "/dev/tty.usbmodem593A0392311") 
 modbus = ModbusManager(port=SERIAL_PORT)
 
+CONFIG_FILE = "sequencer_config.json"
+
 # Sequencer State
 class Sequencer:
     def __init__(self):
         self.active = False
-        self.speed_a = 1000
+        self.speed_a = 1500
         self.speed_b = 3000
-        self.interval = 5
+        self.interval = 0.2
         self.current_target = "A"
         self.task: Optional[asyncio.Task] = None
 
+    def to_dict(self):
+        return {
+            "speed_a": self.speed_a,
+            "speed_b": self.speed_b,
+            "interval": self.interval
+        }
+
+    def from_dict(self, data):
+        self.speed_a = data.get("speed_a", self.speed_a)
+        self.speed_b = data.get("speed_b", self.speed_b)
+        self.interval = data.get("interval", self.interval)
+
 sequencer = Sequencer()
+
+def save_config():
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump(sequencer.to_dict(), f)
+    except Exception as e:
+        print(f"Error saving config: {e}")
+
+def load_config():
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                data = json.load(f)
+                sequencer.from_dict(data)
+        except Exception as e:
+            print(f"Error loading config: {e}")
 
 class SpeedRequest(BaseModel):
     rpm: int
@@ -42,6 +73,7 @@ class AccTimeRequest(BaseModel):
 
 @app.on_event("startup")
 def startup_event():
+    load_config()
     connected = modbus.connect()
     if not connected:
         print(f"Warning: Could not connect to {SERIAL_PORT}")
@@ -95,6 +127,9 @@ async def start_sequencer(req: SequencerRequest):
     sequencer.interval = max(0.1, req.interval) # Allow 100ms cycle
     sequencer.active = True
     sequencer.current_target = "A"
+    
+    save_config() # Persist parameters
+    
     sequencer.task = asyncio.create_task(sequencer_loop())
     return {"status": "started"}
 

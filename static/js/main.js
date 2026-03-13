@@ -45,12 +45,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetAlarmBtn = document.getElementById('reset-alarm-btn');
 
     let isUpdating = false;
+    let initialSyncDone = false;
 
     async function updateStatus() {
         if (isUpdating) return;
         try {
             const response = await fetch('/api/status');
             const data = await response.json();
+
+            // Populate inputs on first load
+            if (!initialSyncDone) {
+                seqSpeedA.value = data.sequencer.speed_a;
+                seqSpeedB.value = data.sequencer.speed_b;
+                seqInterval.value = data.sequencer.interval;
+                initialSyncDone = true;
+            }
 
             // Update Primary Stats
             feedbackSpeed.innerHTML = `${data.feedback_speed} <span class="unit">RPM</span>`;
