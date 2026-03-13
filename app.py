@@ -124,7 +124,8 @@ async def start_sequencer(req: SequencerRequest):
     
     sequencer.speed_a = req.speed_a
     sequencer.speed_b = req.speed_b
-    sequencer.interval = max(0.1, req.interval) # Allow 100ms cycle
+    # Lowered to 10ms (0.01s) to avoid aliasing and support high-speed tests
+    sequencer.interval = max(0.01, req.interval) 
     sequencer.active = True
     sequencer.current_target = "A"
     

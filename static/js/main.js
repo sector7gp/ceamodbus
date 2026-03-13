@@ -219,5 +219,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load and start polling
     updateStatus();
-    setInterval(updateStatus, 500); // 2Hz for more real-time feeling
+    setInterval(updateStatus, 200); // 5Hz to avoid UI aliasing at high speed
 });
