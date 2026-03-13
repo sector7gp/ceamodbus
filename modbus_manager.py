@@ -52,7 +52,7 @@ class ModbusManager:
 
     def read_motor_status(self):
         """
-        Reads all documented registers in logical blocks.
+        Reads all documented registers.
         """
         status = {
             "set_speed": 0,
@@ -71,41 +71,50 @@ class ModbusManager:
         }
 
         # Block 1: Velocities (0x56 to 0x5F)
-        regs1 = self._read_safe(0x0056, 10)
-        if regs1:
-            status["set_speed"] = regs1[0]           # 0x0056
-            status["feedback_speed"] = regs1[9]      # 0x005F
+        regs1 = self._read_safe(0x0056, 1)
+        if regs1 is not None:
+            status["set_speed"] = regs1[0]
             status["connected"] = True
+            
+            regs_fb = self._read_safe(0x005F, 1)
+            if regs_fb:
+                status["feedback_speed"] = regs_fb[0]
 
-        # Block 2: Logic states (0x66 to 0x6D)
-        regs2 = self._read_safe(0x0066, 8)
-        if regs2:
-            status["is_enabled"] = regs2[0] == 0    # 0=Enable, 1=Disable
-            status["is_braked"] = regs2[4] == 0     # 0=Brake, 1=No Brake
-            status["is_forward"] = regs2[7] == 1    # 1=Forward, 0=Backwards
+        # Block 2: Logic states
+        # Habilitar (0x66), Freno (0x6A), Sentido (0x6D)
+        r_en = self._read_safe(0x0066, 1)
+        if r_en is not None: status["is_enabled"] = r_en[0] == 0
+        
+        r_brk = self._read_safe(0x006A, 1)
+        if r_brk is not None: status["is_braked"] = r_brk[0] == 0
+        
+        r_dir = self._read_safe(0x006D, 1)
+        if r_dir is not None:
+            # 1: Forward, 0: Reverse (per doc)
+            status["is_forward"] = r_dir[0] == 1
 
         # Block 3: Alarm (0x76)
         regs3 = self._read_safe(0x0076, 1)
-        if regs3:
-            status["alarm_code"] = regs3[0]
+        if regs3 is not None: status["alarm_code"] = regs3[0]
 
-        # Block 4: Config (0x86 to 0x8A)
-        regs4 = self._read_safe(0x0086, 5)
-        if regs4:
-            status["pole_pairs"] = regs4[0]         # 0x0086
-            # Doc says 9s = Value 90 (0x5A). So resolution is 0.1s.
-            status["acc_time"] = regs4[4] / 10.0    # 0x008A
+        # Block 4: Config
+        r_pole = self._read_safe(0x0086, 1)
+        if r_pole is not None: status["pole_pairs"] = r_pole[0]
+        
+        r_acc = self._read_safe(0x008A, 1)
+        if r_acc is not None:
+            status["acc_time"] = r_acc[0] / 10.0
 
         # Block 5: Max analogue speed (0x92)
         regs5 = self._read_safe(0x0092, 1)
-        if regs5:
-            status["max_analogue_speed"] = regs5[0]
+        if regs5 is not None: status["max_analogue_speed"] = regs5[0]
 
         # Block 6: Connection & Version (0xB6, 0xBB)
-        regs6 = self._read_safe(0x00B6, 6)
-        if regs6:
-            status["rs485_status"] = regs6[0]       # 0xB6
-            status["version"] = regs6[5]            # 0xBB
+        r_485 = self._read_safe(0x00B6, 1)
+        if r_485 is not None: status["rs485_status"] = r_485[0]
+        
+        r_ver = self._read_safe(0x00BB, 1)
+        if r_ver is not None: status["version"] = r_ver[0]
 
         return status
 

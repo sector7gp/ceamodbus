@@ -63,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update Primary Stats
             feedbackSpeed.innerHTML = `${data.feedback_speed} <span class="unit">RPM</span>`;
-            setSpeedDisplay.innerHTML = `${data.set_speed} <span class="unit">RPM</span>`;
+            const speedBadge = document.getElementById('set-speed-badge');
+            if (speedBadge) speedBadge.textContent = `Cmd: ${data.set_speed} RPM`;
 
             // Progress bar
             const max = data.max_analogue_speed || 3000;

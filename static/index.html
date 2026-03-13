@@ -53,9 +53,17 @@
                     </div>
                 </div>
 
-                <div class="card glass">
-                    <h3>Velocidad Seteada</h3>
-                    <div class="value" id="set-speed-display">0 <span class="unit">RPM</span></div>
+                <div class="card glass highlight">
+                    <div class="card-header">
+                        <h3>Seteo de Velocidad</h3>
+                        <span class="badge secondary" id="set-speed-badge">Cmd: 0 RPM</span>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-box big-input">
+                            <input type="number" id="speed-input" placeholder="0 - 60000 RPM">
+                            <button id="set-speed-btn" class="btn-primary">Confirmar</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Status Details -->
@@ -126,16 +134,6 @@
                     </div>
                 </div>
 
-                <!-- Speed Control -->
-                <div class="card glass">
-                    <h3>Seteo de Velocidad</h3>
-                    <div class="input-group">
-                        <div class="input-box big-input">
-                            <input type="number" id="speed-input" placeholder="0 - 60000 RPM">
-                            <button id="set-speed-btn" class="btn-primary">Confirmar</button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Speed Sequencer -->
                 <div class="card glass sequencer-card">
