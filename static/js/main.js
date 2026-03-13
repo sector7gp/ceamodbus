@@ -121,11 +121,17 @@ document.addEventListener('DOMContentLoaded', () => {
         isUpdating = true;
         try {
             const headers = { 'Content-Type': 'application/json' };
-            await fetch(url, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: body ? headers : {},
                 body: body !== null ? JSON.stringify(body) : null
             });
+            const resData = await response.json();
+
+            if (resData.status === 'error') {
+                alert(`Error en Hardware: ${resData.message}`);
+            }
+
             await updateStatus();
         } catch (error) {
             console.error(`Error in ${url}:`, error);

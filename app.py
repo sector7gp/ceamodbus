@@ -38,7 +38,7 @@ class SequencerRequest(BaseModel):
     interval: float
 
 class AccTimeRequest(BaseModel):
-    seconds: int
+    seconds: float
 
 @app.on_event("startup")
 def startup_event():
@@ -69,7 +69,9 @@ async def sequencer_loop():
     while sequencer.active:
         try:
             target_rpm = sequencer.speed_a if sequencer.current_target == "A" else sequencer.speed_b
-            modbus.set_speed(target_rpm)
+            success, msg = modbus.set_speed(target_rpm)
+            if not success:
+                print(f"Sequencer warning: {msg}")
             
             # Switch for next time
             sequencer.current_target = "B" if sequencer.current_target == "A" else "A"
@@ -105,63 +107,63 @@ async def stop_sequencer():
 
 @app.post("/api/speed")
 async def set_speed(req: SpeedRequest):
-    modbus.set_speed(req.rpm)
-    return {"status": "ok"}
+    success, msg = modbus.set_speed(req.rpm)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/toggle")
 async def toggle_motor(enabled: bool):
-    modbus.set_enabled(enabled)
-    return {"status": "ok"}
+    success, msg = modbus.set_enabled(enabled)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/brake")
 async def toggle_brake(braked: bool):
-    modbus.set_brake(braked)
-    return {"status": "ok"}
+    success, msg = modbus.set_brake(braked)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/direction")
 async def set_direction(forward: bool):
-    modbus.set_direction(forward)
-    return {"status": "ok"}
+    success, msg = modbus.set_direction(forward)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/reset_alarm")
 async def reset_alarm():
-    modbus.reset_alarm()
-    return {"status": "ok"}
+    success, msg = modbus.reset_alarm()
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/acc_time")
 async def set_acc_time(req: AccTimeRequest):
-    modbus.set_acc_time(req.seconds)
-    return {"status": "ok"}
+    success, msg = modbus.set_acc_time(req.seconds)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/pole_pairs")
 async def set_pole_pairs(count: int):
-    modbus.set_pole_pairs(count)
-    return {"status": "ok"}
+    success, msg = modbus.set_pole_pairs(count)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/max_speed")
 async def set_max_speed(rpm: int):
-    modbus.set_max_speed(rpm)
-    return {"status": "ok"}
+    success, msg = modbus.set_max_speed(rpm)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/rs485_control")
 async def set_rs485_control(enabled: bool):
-    modbus.set_rs485_control(enabled)
-    return {"status": "ok"}
+    success, msg = modbus.set_rs485_control(enabled)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/return_data")
 async def set_return_data(enabled: bool):
-    modbus.set_return_data(enabled)
-    return {"status": "ok"}
+    success, msg = modbus.set_return_data(enabled)
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/save")
 async def save_params():
-    modbus.save_parameters()
-    return {"status": "ok"}
+    success, msg = modbus.save_parameters()
+    return {"status": "ok" if success else "error", "message": msg}
 
 @app.post("/api/restore")
 async def restore_factory():
-    modbus.restore_factory_settings()
-    return {"status": "ok"}
+    success, msg = modbus.restore_factory_settings()
+    return {"status": "ok" if success else "error", "message": msg}
 
 # Static files for the frontend
 if os.path.exists("static"):
