@@ -110,9 +110,35 @@ header {
 
 .main-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: auto auto;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1.5rem;
+}
+
+.big-input input {
+    font-size: 1.25rem;
+}
+
+.btn-danger-outline {
+    border: 2px solid var(--danger);
+    background: transparent;
+    color: var(--danger);
+    padding: 0.6rem 1rem;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-danger-outline:hover {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
 }
 
 .glass {
@@ -235,6 +261,32 @@ input:checked+.slider-red {
 
 input:checked+.slider:before {
     transform: translateX(24px);
+}
+
+.switch.small {
+    width: 40px;
+    height: 20px;
+}
+
+.switch.small .slider:before {
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+}
+
+.switch.small input:checked+.slider:before {
+    transform: translateX(20px);
+}
+
+.control-row.small {
+    margin-bottom: 0.75rem;
+}
+
+.control-row.small label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 /* Segmented Control */

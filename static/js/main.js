@@ -20,8 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const setSpeedBtn = document.getElementById('set-speed-btn');
     const accInput = document.getElementById('acc-input');
     const setAccBtn = document.getElementById('set-acc-btn');
+    const poleInput = document.getElementById('pole-input');
+    const setPoleBtn = document.getElementById('set-pole-btn');
+    const maxSpeedInput = document.getElementById('max-speed-input');
+    const setMaxSpeedBtn = document.getElementById('set-max-speed-btn');
 
     // System Elements
+    const rs485Toggle = document.getElementById('rs485-toggle');
+    const returnToggle = document.getElementById('return-toggle');
+    const saveBtn = document.getElementById('save-btn');
+    const restoreBtn = document.getElementById('restore-btn');
     const connectBtn = document.getElementById('connect-btn');
     const connectionDot = document.getElementById('connection-dot');
     const connectionText = document.getElementById('connection-text');
@@ -41,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
             feedbackSpeed.innerHTML = `${data.feedback_speed} <span class="unit">RPM</span>`;
             setSpeedDisplay.innerHTML = `${data.set_speed} <span class="unit">RPM</span>`;
 
-            // Progress bar (Max 3000 as typical BLDC range, or use data.max_analogue_speed)
+            // Progress bar
             const max = data.max_analogue_speed || 3000;
             const percent = Math.min((data.feedback_speed / max) * 100, 100);
             speedFill.style.width = `${percent}%`;
@@ -54,13 +62,15 @@ document.addEventListener('DOMContentLoaded', () => {
             driverVersionDisplay.textContent = data.version;
 
             // Logic States (Update only if user isn't interacting)
-            if (!document.activeElement || document.activeElement.type !== 'checkbox') {
+            if (!document.activeElement || (document.activeElement.type !== 'checkbox' && document.activeElement.type !== 'radio')) {
                 enableToggle.checked = data.is_enabled;
                 brakeToggle.checked = data.is_braked;
-            }
+                if (data.is_forward) dirFwd.checked = true;
+                else dirRev.checked = true;
 
-            if (data.is_forward) dirFwd.checked = true;
-            else dirRev.checked = true;
+                // System states
+                rs485Toggle.checked = data.rs485_status === 1;
+            }
 
             // Connection indicator
             if (!data.connected) {
@@ -91,10 +101,11 @@ document.addEventListener('DOMContentLoaded', () => {
     async function postAction(url, body = null) {
         isUpdating = true;
         try {
+            const headers = { 'Content-Type': 'application/json' };
             await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: body ? JSON.stringify(body) : null
+                headers: body ? headers : {},
+                body: body !== null ? JSON.stringify(body) : null
             });
             await updateStatus();
         } catch (error) {
@@ -114,18 +125,41 @@ document.addEventListener('DOMContentLoaded', () => {
         accInput.value = '';
     });
 
+    setPoleBtn.addEventListener('click', () => {
+        postAction(`/api/pole_pairs?count=${parseInt(poleInput.value)}`);
+        poleInput.value = '';
+    });
+
+    setMaxSpeedBtn.addEventListener('click', () => {
+        postAction(`/api/max_speed?rpm=${parseInt(maxSpeedInput.value)}`);
+        maxSpeedInput.value = '';
+    });
+
     enableToggle.addEventListener('change', () => {
-        fetch(`/api/toggle?enabled=${enableToggle.checked}`, { method: 'POST' });
+        postAction(`/api/toggle?enabled=${enableToggle.checked}`);
     });
 
     brakeToggle.addEventListener('change', () => {
-        fetch(`/api/brake?braked=${brakeToggle.checked}`, { method: 'POST' });
+        postAction(`/api/brake?braked=${brakeToggle.checked}`);
     });
 
     [dirFwd, dirRev].forEach(radio => {
         radio.addEventListener('change', () => {
-            fetch(`/api/direction?forward=${dirFwd.checked}`, { method: 'POST' });
+            if (radio.checked) postAction(`/api/direction?forward=${dirFwd.checked}`);
         });
+    });
+
+    rs485Toggle.addEventListener('change', () => {
+        postAction(`/api/rs485_control?enabled=${rs485Toggle.checked}`);
+    });
+
+    returnToggle.addEventListener('change', () => {
+        postAction(`/api/return_data?enabled=${returnToggle.checked}`);
+    });
+
+    saveBtn.addEventListener('click', () => postAction('/api/save'));
+    restoreBtn.addEventListener('click', () => {
+        if (confirm('¿Seguro quieres restaurar los ajustes de fábrica?')) postAction('/api/restore');
     });
 
     resetAlarmBtn.addEventListener('click', () => postAction('/api/reset_alarm'));
@@ -133,5 +167,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load and start polling
     updateStatus();
-    setInterval(updateStatus, 1000);
+    setInterval(updateStatus, 1500); // Polling slightly slower to allow writes
 });

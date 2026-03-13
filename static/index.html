@@ -60,10 +60,14 @@
 
                 <!-- Status Details -->
                 <div class="card glass">
-                    <h3>Configuración</h3>
+                    <h3>Configuración Actual</h3>
                     <div class="detail-row">
                         <span>Pares de Polos:</span>
                         <strong id="pole-pairs">0</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Rampa Acc/Dec:</span>
+                        <strong id="acc-time-display">0</strong>s
                     </div>
                     <div class="detail-row">
                         <span>Velocidad Máx (Ana):</span>
@@ -71,8 +75,8 @@
                     </div>
                 </div>
 
-                <!-- Interactive Controls -->
-                <div class="card controls-card glass">
+                <!-- Operations -->
+                <div class="card glass">
                     <h3>Control de Operación</h3>
                     <div class="control-row">
                         <label>Habilitar Motor</label>
@@ -99,23 +103,62 @@
                     </div>
                 </div>
 
-                <!-- Input Controls -->
-                <div class="card settings-card glass">
-                    <h3>Ajustes Rápidos</h3>
+                <!-- Manual Config -->
+                <div class="card glass">
+                    <h3>Ajustes de Parámetros</h3>
                     <div class="input-group">
-                        <label>RPM de Seteo</label>
                         <div class="input-box">
-                            <input type="number" id="speed-input" placeholder="0 - 60000">
-                            <button id="set-speed-btn" class="btn-primary">Set</button>
+                            <input type="number" id="pole-input" placeholder="Pares de Polos">
+                            <button id="set-pole-btn" class="btn-primary">Set</button>
                         </div>
                     </div>
                     <div class="input-group">
-                        <label>Rampa Acc/Dec (seg)</label>
                         <div class="input-box">
-                            <input type="number" id="acc-input" placeholder="Ej: 10">
+                            <input type="number" id="max-speed-input" placeholder="Vel. Máxima (RPM)">
+                            <button id="set-max-speed-btn" class="btn-primary">Set</button>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="input-box">
+                            <input type="number" id="acc-input" placeholder="Rampa (0-15s)">
                             <button id="set-acc-btn" class="btn-primary">Set</button>
                         </div>
-                        <p class="hint">Actual: <span id="acc-time-display">0</span>s</p>
+                    </div>
+                </div>
+
+                <!-- Speed Control -->
+                <div class="card glass">
+                    <h3>Seteo de Velocidad</h3>
+                    <div class="input-group">
+                        <div class="input-box big-input">
+                            <input type="number" id="speed-input" placeholder="0 - 60000 RPM">
+                            <button id="set-speed-btn" class="btn-primary">Confirmar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Actions -->
+                <div class="card glass">
+                    <h3>Acciones de Sistema</h3>
+                    <div class="system-buttons">
+                        <div class="control-row small">
+                            <label>RS-485 R/W</label>
+                            <label class="switch small">
+                                <input type="checkbox" id="rs485-toggle" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="control-row small">
+                            <label>Return Data</label>
+                            <label class="switch small">
+                                <input type="checkbox" id="return-toggle" checked>
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="btn-grid">
+                            <button id="save-btn" class="btn-secondary">Guardar en Memoria</button>
+                            <button id="restore-btn" class="btn-danger-outline">Reset de Fábrica</button>
+                        </div>
                     </div>
                 </div>
             </section>

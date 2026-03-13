@@ -113,8 +113,31 @@ class ModbusManager:
         self.client.write_register(address=0x006D, value=1 if forward else 0, slave=self.slave_id)
 
     def reset_alarm(self):
-        # Writing 0 to 0x0076 resets the alarm
+        # Description: If zero written, value changes to 1 (reset)
         self.client.write_register(address=0x0076, value=0, slave=self.slave_id)
 
     def set_acc_time(self, seconds):
-        self.client.write_register(address=0x008A, value=seconds, slave=self.slave_id)
+        if 0 <= seconds <= 15:
+            self.client.write_register(address=0x008A, value=seconds, slave=self.slave_id)
+
+    def set_pole_pairs(self, count):
+        if 0 <= count <= 255:
+            self.client.write_register(address=0x0086, value=count, slave=self.slave_id)
+
+    def set_max_speed(self, rpm):
+        if 0 <= rpm <= 60000:
+            self.client.write_register(address=0x0092, value=rpm, slave=self.slave_id)
+
+    def set_rs485_control(self, enabled=True):
+        # 1 = both read and write, 0 = only read
+        self.client.write_register(address=0x00B6, value=1 if enabled else 0, slave=self.slave_id)
+
+    def set_return_data(self, enabled=True):
+        # 0 = return data, 1 = only execute (no return)
+        self.client.write_register(address=0x0040, value=0 if enabled else 1, slave=self.slave_id)
+
+    def save_parameters(self):
+        self.client.write_register(address=0x00BC, value=1, slave=self.slave_id)
+
+    def restore_factory_settings(self):
+        self.client.write_register(address=0x00CC, value=1, slave=self.slave_id)
