@@ -8,12 +8,34 @@ import os
 
 app = FastAPI(title="CEAModbus API")
 
+import asyncio
+from typing import Optional
+
+app = FastAPI(title="CEAModbus API")
+
 # Setup Modbus Manager
 SERIAL_PORT = os.getenv("MODBUS_PORT", "/dev/tty.usbmodem593A0392311") 
 modbus = ModbusManager(port=SERIAL_PORT)
 
+# Sequencer State
+class Sequencer:
+    def __init__(self):
+        self.active = False
+        self.speed_a = 1000
+        self.speed_b = 3000
+        self.interval = 5
+        self.current_target = "A"
+        self.task: Optional[asyncio.Task] = None
+
+sequencer = Sequencer()
+
 class SpeedRequest(BaseModel):
     rpm: int
+
+class SequencerRequest(BaseModel):
+    speed_a: int
+    speed_b: int
+    interval: int
 
 class AccTimeRequest(BaseModel):
     seconds: int
@@ -31,8 +53,52 @@ def shutdown_event():
 @app.get("/api/status")
 async def get_status():
     data = modbus.read_motor_status()
-    # If not connected or read failure, read_motor_status returns a dict with default values and connected=False
+    # Add sequencer info to status
+    data["sequencer"] = {
+        "active": sequencer.active,
+        "current_target": sequencer.current_target,
+        "speed_a": sequencer.speed_a,
+        "speed_b": sequencer.speed_b,
+        "interval": sequencer.interval
+    }
     return data
+
+# --- Sequencer Logic ---
+
+async def sequencer_loop():
+    while sequencer.active:
+        try:
+            target_rpm = sequencer.speed_a if sequencer.current_target == "A" else sequencer.speed_b
+            modbus.set_speed(target_rpm)
+            print(f"Sequencer: Sent speed {target_rpm} (Target {sequencer.current_target})")
+            
+            # Switch for next time
+            sequencer.current_target = "B" if sequencer.current_target == "A" else "A"
+            
+            await asyncio.sleep(sequencer.interval)
+        except Exception as e:
+            print(f"Sequencer error: {e}")
+            await asyncio.sleep(1)
+
+@app.post("/api/sequencer/start")
+async def start_sequencer(req: SequencerRequest):
+    if sequencer.active:
+        return {"status": "already_running"}
+    
+    sequencer.speed_a = req.speed_a
+    sequencer.speed_b = req.speed_b
+    sequencer.interval = max(1, req.interval)
+    sequencer.active = True
+    sequencer.current_target = "A"
+    sequencer.task = asyncio.create_task(sequencer_loop())
+    return {"status": "started"}
+
+@app.post("/api/sequencer/stop")
+async def stop_sequencer():
+    sequencer.active = False
+    if sequencer.task:
+        sequencer.task.cancel()
+    return {"status": "stopped"}
 
 @app.post("/api/speed")
 async def set_speed(req: SpeedRequest):

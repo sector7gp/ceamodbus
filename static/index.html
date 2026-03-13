@@ -137,6 +137,29 @@
                     </div>
                 </div>
 
+                <!-- Speed Sequencer -->
+                <div class="card glass sequencer-card">
+                    <div class="card-header">
+                        <h3>Secuenciador</h3>
+                        <span id="seq-active-badge" class="badge hidden">Activo</span>
+                    </div>
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label>Velocidad A</label>
+                            <input type="number" id="seq-speed-a" value="1000">
+                        </div>
+                        <div class="input-group">
+                            <label>Velocidad B</label>
+                            <input type="number" id="seq-speed-b" value="3000">
+                        </div>
+                        <div class="input-group">
+                            <label>Intervalo (seg)</label>
+                            <input type="number" id="seq-interval" value="5">
+                        </div>
+                    </div>
+                    <button id="seq-toggle-btn" class="btn-primary w-full">Iniciar Secuencia</button>
+                </div>
+
                 <!-- System Actions -->
                 <div class="card glass">
                     <h3>Acciones de Sistema</h3>

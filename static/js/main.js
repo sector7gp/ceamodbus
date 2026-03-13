@@ -25,6 +25,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxSpeedInput = document.getElementById('max-speed-input');
     const setMaxSpeedBtn = document.getElementById('set-max-speed-btn');
 
+    // Sequencer Elements
+    const seqSpeedA = document.getElementById('seq-speed-a');
+    const seqSpeedB = document.getElementById('seq-speed-b');
+    const seqInterval = document.getElementById('seq-interval');
+    const seqToggleBtn = document.getElementById('seq-toggle-btn');
+    const seqActiveBadge = document.getElementById('seq-active-badge');
+
     // System Elements
     const rs485Toggle = document.getElementById('rs485-toggle');
     const returnToggle = document.getElementById('return-toggle');
@@ -60,6 +67,18 @@ document.addEventListener('DOMContentLoaded', () => {
             accTimeDisplay.textContent = data.acc_time;
             rs485StatusDisplay.textContent = data.rs485_status;
             driverVersionDisplay.textContent = data.version;
+
+            // Update Sequencer UI
+            if (data.sequencer.active) {
+                seqToggleBtn.textContent = 'Detener Secuencia';
+                seqToggleBtn.className = 'btn-danger w-full';
+                seqActiveBadge.classList.remove('hidden');
+                seqActiveBadge.textContent = `Apuntando a ${data.sequencer.current_target}`;
+            } else {
+                seqToggleBtn.textContent = 'Iniciar Secuencia';
+                seqToggleBtn.className = 'btn-primary w-full';
+                seqActiveBadge.classList.add('hidden');
+            }
 
             // Logic States (Update only if user isn't interacting)
             if (!document.activeElement || (document.activeElement.type !== 'checkbox' && document.activeElement.type !== 'radio')) {
@@ -115,10 +134,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function toggleSequencer() {
+        const isActive = seqToggleBtn.textContent.includes('Detener');
+        if (isActive) {
+            await postAction('/api/sequencer/stop');
+        } else {
+            const body = {
+                speed_a: parseInt(seqSpeedA.value),
+                speed_b: parseInt(seqSpeedB.value),
+                interval: parseInt(seqInterval.value)
+            };
+            await postAction('/api/sequencer/start', body);
+        }
+    }
+
     setSpeedBtn.addEventListener('click', () => {
         postAction('/api/speed', { rpm: parseInt(speedInput.value) });
         speedInput.value = '';
     });
+
+    seqToggleBtn.addEventListener('click', toggleSequencer);
 
     setAccBtn.addEventListener('click', () => {
         postAction('/api/acc_time', { seconds: parseInt(accInput.value) });
