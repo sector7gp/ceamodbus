@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Connection indicator
             if (!data.connected) {
                 connectionDot.className = 'dot disconnected';
-                connectionText.textContent = 'Hardware No Detectado';
+                connectionText.textContent = `Hardware No Detectado (Port reset?)`;
             } else {
                 connectionDot.className = 'dot connected';
                 connectionText.textContent = 'Hardware Conectado';

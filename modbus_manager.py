@@ -22,7 +22,15 @@ class ModbusManager:
     def disconnect(self):
         self.client.close()
         
+    def _ensure_connected(self):
+        if not self.client.connected:
+            logging.info("Attempting to reconnect Modbus...")
+            return self.client.connect()
+        return True
+
     def _read_safe(self, address, count):
+        if not self._ensure_connected():
+            return None
         try:
             res = self.client.read_holding_registers(address=address, count=count, slave=self.slave_id)
             if res.isError():
@@ -31,23 +39,33 @@ class ModbusManager:
                 if hasattr(res, 'exception_code') and res.exception_code == 0x02:
                     error_msg = "Error: 485 Control Disabled or Invalid Address"
                 logging.error(f"Read error at {hex(address)}: {error_msg}")
+                # If it's a connection error, close so it reconnects next time
+                if "No response received" in str(res) or "Connection" in str(res):
+                    self.client.close()
                 return None
             if not hasattr(res, 'registers') or not res.registers:
                 return None
             return res.registers
         except Exception as e:
             logging.error(f"Read error at {hex(address)}: {e}")
+            if "Device not configured" in str(e):
+                self.client.close()
             return None
 
     def _write_safe(self, address, value):
+        if not self._ensure_connected():
+            return False, "Serial port disconnected"
         try:
             res = self.client.write_register(address=address, value=value, slave=self.slave_id)
             if res.isError():
                 if hasattr(res, 'exception_code') and res.exception_code == 0x02:
                     return False, "485 Control Disabled. Check register 0xB6."
+                # Close connection on IO errors to force reconnect
+                self.client.close()
                 return False, f"Modbus Error: {res}"
             return True, "OK"
         except Exception as e:
+            self.client.close()
             return False, str(e)
 
     def read_motor_status(self):
@@ -84,12 +102,13 @@ class ModbusManager:
         # Habilitar (0x66), Freno (0x6A), Sentido (0x6D)
         r_en = self._read_safe(0x0066, 1)
         if r_en is not None: 
-            # Changed: 1=Enable, 0=Disable (matches Doc behavior)
-            status["is_enabled"] = r_en[0] == 1
+            # Reverted: 0=Enable, 1=Disable (User says inverted)
+            status["is_enabled"] = r_en[0] == 0
         
         r_brk = self._read_safe(0x006A, 1)
-        # Assuming Brake follows same logic: 1=Braked/Active, 0=None
-        if r_brk is not None: status["is_braked"] = r_brk[0] == 1
+        if r_brk is not None: 
+            # Reverted: 0=Brake Active, 1=No Brake
+            status["is_braked"] = r_brk[0] == 0
         
         r_dir = self._read_safe(0x006D, 1)
         if r_dir is not None:
@@ -125,10 +144,10 @@ class ModbusManager:
         return self._write_safe(address=0x0056, value=rpm)
 
     def set_enabled(self, enabled=True):
-        return self._write_safe(address=0x0066, value=1 if enabled else 0)
+        return self._write_safe(address=0x0066, value=0 if enabled else 1)
 
     def set_brake(self, braked=True):
-        return self._write_safe(address=0x006A, value=1 if braked else 0)
+        return self._write_safe(address=0x006A, value=0 if braked else 1)
 
     def set_direction(self, forward=True):
         return self._write_safe(address=0x006D, value=1 if forward else 0)
