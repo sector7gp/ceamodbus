@@ -219,5 +219,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial load and start polling
     updateStatus();
-    setInterval(updateStatus, 200); // 5Hz to avoid UI aliasing at high speed
+    setInterval(updateStatus, 500); // 2Hz is sufficient and more stable for Modbus traffic
 });

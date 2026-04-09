@@ -1,12 +1,23 @@
 import logging
+import threading
 from pymodbus.client import ModbusSerialClient
 from pymodbus.exceptions import ModbusException
 
 class ModbusManager:
-    def __init__(self, port='/dev/tty.usbmodem593A0392311', baudrate=9600, slave_id=1):
+    def __init__(self, port='/dev/tty.usbmodem574C0268501', baudrate=9600, slave_id=1):
         self.port = port
         self.baudrate = baudrate
         self.slave_id = slave_id
+        self.lock = threading.Lock()
+        self.cached_config = None
+        self.cached_dynamic = {
+            "set_speed": 0,
+            "is_enabled": False,
+            "is_braked": False,
+            "is_forward": True,
+            "alarm_code": 0,
+            "connected": False
+        }
         self.client = ModbusSerialClient(
             port=self.port,
             baudrate=self.baudrate,
@@ -29,114 +40,140 @@ class ModbusManager:
         return True
 
     def _read_safe(self, address, count):
-        if not self._ensure_connected():
-            return None
-        try:
-            res = self.client.read_holding_registers(address=address, count=count, slave=self.slave_id)
-            if res.isError():
-                # Check for specific Modbus Exception (like 0x86)
-                error_msg = f"Modbus Error: {res}"
-                if hasattr(res, 'exception_code') and res.exception_code == 0x02:
-                    error_msg = "Error: 485 Control Disabled or Invalid Address"
-                logging.error(f"Read error at {hex(address)}: {error_msg}")
-                # If it's a connection error, close so it reconnects next time
-                if "No response received" in str(res) or "Connection" in str(res):
+        with self.lock:
+            if not self._ensure_connected():
+                return None
+            try:
+                res = self.client.read_holding_registers(address=address, count=count, slave=self.slave_id)
+                if res.isError():
+                    # Check for specific Modbus Exception (like 0x86)
+                    error_msg = f"Modbus Error: {res}"
+                    if hasattr(res, 'exception_code') and res.exception_code == 0x02:
+                        error_msg = "Error: 485 Control Disabled or Invalid Address"
+                    logging.error(f"Read error at {hex(address)}: {error_msg}")
+                    # If it's a connection error, close so it reconnects next time
+                    if "No response received" in str(res) or "Connection" in str(res):
+                        self.client.close()
+                    return None
+                if not hasattr(res, 'registers') or not res.registers:
+                    return None
+                return res.registers
+            except Exception as e:
+                logging.error(f"Read error at {hex(address)}: {e}")
+                if "Device not configured" in str(e):
                     self.client.close()
                 return None
-            if not hasattr(res, 'registers') or not res.registers:
-                return None
-            return res.registers
-        except Exception as e:
-            logging.error(f"Read error at {hex(address)}: {e}")
-            if "Device not configured" in str(e):
-                self.client.close()
-            return None
 
     def _write_safe(self, address, value):
-        if not self._ensure_connected():
-            return False, "Serial port disconnected"
-        try:
-            res = self.client.write_register(address=address, value=value, slave=self.slave_id)
-            if res.isError():
-                if hasattr(res, 'exception_code') and res.exception_code == 0x02:
-                    return False, "485 Control Disabled. Check register 0xB6."
-                # Close connection on IO errors to force reconnect
+        with self.lock:
+            if not self._ensure_connected():
+                return False, "Serial port disconnected"
+            try:
+                res = self.client.write_register(address=address, value=value, slave=self.slave_id)
+                if res.isError():
+                    if hasattr(res, 'exception_code') and res.exception_code == 0x02:
+                        return False, "485 Control Disabled. Check register 0xB6."
+                    # Close connection on IO errors to force reconnect
+                    self.client.close()
+                    return False, f"Modbus Error: {res}"
+                return True, "OK"
+            except Exception as e:
                 self.client.close()
-                return False, f"Modbus Error: {res}"
-            return True, "OK"
-        except Exception as e:
-            self.client.close()
-            return False, str(e)
+                return False, str(e)
 
-    def read_motor_status(self):
+    def read_motor_status(self, minimal=False):
         """
         Reads all documented registers.
         """
         status = {
-            "set_speed": 0,
+            "set_speed": self.cached_dynamic["set_speed"],
             "feedback_speed": 0,
-            "is_enabled": False,
-            "is_braked": False,
-            "is_forward": True,
-            "alarm_code": 0,
+            "is_enabled": self.cached_dynamic["is_enabled"],
+            "is_braked": self.cached_dynamic["is_braked"],
+            "is_forward": self.cached_dynamic["is_forward"],
+            "alarm_code": self.cached_dynamic["alarm_code"],
             "pole_pairs": 0,
             "acc_time": 0,
             "max_analogue_speed": 0,
             "rs485_status": 0,
             "version": "N/A",
-            "connected": False,
+            "connected": self.cached_dynamic["connected"],
             "last_error": None
         }
 
-        # Block 1: Velocities (0x56 to 0x5F)
-        regs1 = self._read_safe(0x0056, 1)
-        if regs1 is not None:
-            status["set_speed"] = regs1[0]
-            status["connected"] = True
-            
+        if minimal:
+            # When Sequencer is active, we bypass reading 5 out of 6 blocks 
+            # to guarantee the serial port has maximum throughput.
             regs_fb = self._read_safe(0x005F, 1)
             if regs_fb:
                 status["feedback_speed"] = regs_fb[0]
+                status["connected"] = True
+            else:
+                status["connected"] = False
+        else:
+            # Block 1: Velocities (0x56 to 0x5F)
+            regs1 = self._read_safe(0x0056, 1)
+            if regs1 is not None:
+                status["set_speed"] = regs1[0]
+                status["connected"] = True
+                
+                regs_fb = self._read_safe(0x005F, 1)
+                if regs_fb:
+                    status["feedback_speed"] = regs_fb[0]
 
-        # Block 2: Logic states
-        # Habilitar (0x66), Freno (0x6A), Sentido (0x6D)
-        r_en = self._read_safe(0x0066, 1)
-        if r_en is not None: 
-            # Reverted: 0=Enable, 1=Disable (User says inverted)
-            status["is_enabled"] = r_en[0] == 0
-        
-        r_brk = self._read_safe(0x006A, 1)
-        if r_brk is not None: 
-            # Reverted: 0=Brake Active, 1=No Brake
-            status["is_braked"] = r_brk[0] == 0
-        
-        r_dir = self._read_safe(0x006D, 1)
-        if r_dir is not None:
-            # 1: Forward, 0: Reverse (per doc)
-            status["is_forward"] = r_dir[0] == 1
+            # Block 2: Logic states
+            # Habilitar (0x66), Freno (0x6A), Sentido (0x6D)
+            r_en = self._read_safe(0x0066, 1)
+            if r_en is not None: 
+                # Reverted: 0=Enable, 1=Disable (User says inverted)
+                status["is_enabled"] = r_en[0] == 0
+            
+            r_brk = self._read_safe(0x006A, 1)
+            if r_brk is not None: 
+                # Reverted: 0=Brake Active, 1=No Brake
+                status["is_braked"] = r_brk[0] == 0
+            
+            r_dir = self._read_safe(0x006D, 1)
+            if r_dir is not None:
+                # 1: Forward, 0: Reverse (per doc)
+                status["is_forward"] = r_dir[0] == 1
 
-        # Block 3: Alarm (0x76)
-        regs3 = self._read_safe(0x0076, 1)
-        if regs3 is not None: status["alarm_code"] = regs3[0]
+            # Block 3: Alarm (0x76)
+            regs3 = self._read_safe(0x0076, 1)
+            if regs3 is not None: status["alarm_code"] = regs3[0]
 
-        # Block 4: Config
-        r_pole = self._read_safe(0x0086, 1)
-        if r_pole is not None: status["pole_pairs"] = r_pole[0]
-        
-        r_acc = self._read_safe(0x008A, 1)
-        if r_acc is not None:
-            status["acc_time"] = r_acc[0] / 10.0
+            # Update cached dynamic state
+            self.cached_dynamic["set_speed"] = status["set_speed"]
+            self.cached_dynamic["is_enabled"] = status["is_enabled"]
+            self.cached_dynamic["is_braked"] = status["is_braked"]
+            self.cached_dynamic["is_forward"] = status["is_forward"]
+            self.cached_dynamic["alarm_code"] = status["alarm_code"]
+            self.cached_dynamic["connected"] = status["connected"]
 
-        # Block 5: Max analogue speed (0x92)
-        regs5 = self._read_safe(0x0092, 1)
-        if regs5 is not None: status["max_analogue_speed"] = regs5[0]
+        # Config variables are cached to reduce reading overhead
+        if self.cached_config is None and status["connected"]:
+            self.cached_config = {}
+            r_pole = self._read_safe(0x0086, 1)
+            if r_pole is not None: self.cached_config["pole_pairs"] = r_pole[0]
+            
+            r_acc = self._read_safe(0x008A, 1)
+            if r_acc is not None: self.cached_config["acc_time"] = r_acc[0] / 10.0
 
-        # Block 6: Connection & Version (0xB6, 0xBB)
-        r_485 = self._read_safe(0x00B6, 1)
-        if r_485 is not None: status["rs485_status"] = r_485[0]
-        
-        r_ver = self._read_safe(0x00BB, 1)
-        if r_ver is not None: status["version"] = r_ver[0]
+            regs5 = self._read_safe(0x0092, 1)
+            if regs5 is not None: self.cached_config["max_analogue_speed"] = regs5[0]
+
+            r_485 = self._read_safe(0x00B6, 1)
+            if r_485 is not None: self.cached_config["rs485_status"] = r_485[0]
+            
+            r_ver = self._read_safe(0x00BB, 1)
+            if r_ver is not None: self.cached_config["version"] = r_ver[0]
+
+        if self.cached_config:
+            status.update(self.cached_config)
+        else:
+            status.update({
+                "pole_pairs": 0, "acc_time": 0, "max_analogue_speed": 0, "rs485_status": 0, "version": "N/A"
+            })
 
         return status
 
@@ -156,17 +193,21 @@ class ModbusManager:
         return self._write_safe(address=0x0076, value=0)
 
     def set_acc_time(self, seconds):
+        self.cached_config = None
         # Convert seconds to 0.1s units (e.g. 9.5s -> 95)
         raw_val = int(seconds * 10)
         return self._write_safe(address=0x008A, value=raw_val)
 
     def set_pole_pairs(self, count):
+        self.cached_config = None
         return self._write_safe(address=0x0086, value=count)
 
     def set_max_speed(self, rpm):
+        self.cached_config = None
         return self._write_safe(address=0x0092, value=rpm)
 
     def set_rs485_control(self, enabled=True):
+        self.cached_config = None
         return self._write_safe(address=0x00B6, value=1 if enabled else 0)
 
     def set_return_data(self, enabled=True):
